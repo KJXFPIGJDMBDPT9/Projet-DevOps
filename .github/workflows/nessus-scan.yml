@@ -30,7 +30,7 @@ jobs:
       run: |
         curl -k -X POST -H "Content-Type: application/json" -u "${{ secrets.NESSUS_USER }}:${{ secrets.NESSUS_PASSWORD }}" \
         -d '{
-              "uuid": "web application tests",
+              "uuid": "advanced-uuid",
               "settings": {
                   "name": "Docker Scan",
                   "text_targets": "172.19.0.3"
@@ -43,7 +43,7 @@ jobs:
     - name: Download Nessus report
       run: |
         curl -k -X GET -u "${{ secrets.NESSUS_USER }}:${{ secrets.NESSUS_PASSWORD }}" \
-        https://nessus-host:8834/scans/33/export -o nessus-report.json
+        https://192.168.153.128:8834/scans/33/export -o nessus-report.json
 
     # 7. Analyser le rapport
     - name: Analyze Nessus report
