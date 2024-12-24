@@ -1,51 +1,31 @@
-name: Nessus Vulnerability Scan
+name: Nessus Scan Pipeline
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
+      - main 
 
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  
 
-    steps:  
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Docker
-      run: |
-        docker network create my_network
-        docker run -d --network my_network --name akaunting akaunting/akaunting
-        docker run -d --network my_network --name mysql mysql
-        docker run -d --network my_network --name nessus tenableofficial/nessus
-   
-    - name: Wait for Nessus to initialize
-      run: sleep 60
-   
-    - name: Start Nessus scan
-      run: |
-        curl -k -X POST -H "Content-Type: application/json" -u "${{ secrets.NESSUS_USER }}:${{ secrets.NESSUS_PASSWORD }}" \
-        -d '{
-              "uuid": "advanced-uuid",
-              "settings": {
-                  "name": "Docker Scan",
-                  "text_targets": "172.19.0.3"
-              }
-          }' https://192.168.153.128:8834/scans
-    
-    - name: Wait for Nessus scan to complete
-      run: sleep 120 
-   
-    - name: Download Nessus report
-      run: |
-        curl -k -X GET -u "${{ secrets.NESSUS_USER }}:${{ secrets.NESSUS_PASSWORD }}" \
-        https://192.168.153.128:8834/scans/33/export -o nessus-report.json
-
-    # 7. Analyser le rapport
-    - name: Analyze Nessus report
-      run: |
-        cat nessus-report.json        
+    steps:      
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Run Nessus scan script
+        run: |          
+          sudo apt-get update
+          sudo apt-get install -y docker.io jq curl
+          
+          chmod +x ./nessus-scan.sh
+          ./nessus-scan.sh
+     
+      - name: Upload scan report
+        uses: actions/upload-artifact@v3
+        with:
+          name: nessus-scan-report
+          path: scan_report.html
