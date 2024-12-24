@@ -28,6 +28,16 @@ jobs:
           chmod +x ./nessus-scan.sh
           ./nessus-scan.sh
 
+      - name: List files before uploading
+        run: ls -alh
+
+      - name: Check if the scan report exists
+        run: |
+          if [ ! -f "scan_report.html" ]; then
+            echo "Le fichier scan_report.html n'a pas été généré. Vérifiez le processus de scan."
+            exit 1
+          fi
+
       - name: Upload scan report
         uses: actions/upload-artifact@v3
         with:
