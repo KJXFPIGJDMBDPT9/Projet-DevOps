@@ -9,21 +9,21 @@ jobs:
   scan:
     runs-on: ubuntu-latest  
 
-    steps:      
+    steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      
-      - name: Run Nessus scan script
-        run: |          
-          sudo apt-get update
+
+      - name: Update and install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get upgrade -y  # Met à jour tous les paquets existants
           sudo apt-get install -y docker.io jq curl
-          
+
+      - name: Run Nessus scan script
+        run: |        
           chmod +x ./nessus-scan.sh
           ./nessus-scan.sh
-     
+
       - name: Upload scan report
         uses: actions/upload-artifact@v3
         with:
