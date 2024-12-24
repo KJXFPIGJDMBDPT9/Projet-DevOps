@@ -3,27 +3,30 @@ name: Nessus Scan Pipeline
 on:
   push:
     branches:
-      - main  
+      - main
 
 jobs:
   scan:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
 
-    steps:      
+    steps:
       - name: Checkout code
         uses: actions/checkout@v3
-     
-      - name: Update and install dependencies
+
+      - name: Remove conflicting packages and install Docker
         run: |
           sudo apt-get update -y
-          sudo apt-get upgrade -y
-          sudo apt-get install -y --fix-broken docker.io jq curl
-     
+          sudo apt-get remove --purge -y containerd docker docker-engine docker.io
+          sudo apt-get install -y ca-certificates curl gnupg lsb-release
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update -y
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io jq curl
+
       - name: Run Nessus scan script
         run: |
-          # Lancer le script Bash
-          chmod +x ./run_nessus_scan.sh
-          ./run_nessus_scan.sh
+          chmod +x ./nessus-scan.sh
+          ./nessus-scan.sh
 
       - name: Upload scan report
         uses: actions/upload-artifact@v3
