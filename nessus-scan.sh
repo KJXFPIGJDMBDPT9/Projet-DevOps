@@ -8,15 +8,18 @@ NESSUS_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}
 TARGET_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' akaunting)
 USERNAME="nourelhoda"
 PASSWORD="nourelhoda"
-TOKEN=$(curl -k -s -X POST -d "username=$USERNAME&password=$PASSWORD" "https://$NESSUS_IP:8834/session" | jq -r .token)
+TOKEN=$(curl -s -X POST -d "username=$USERNAME&password=$PASSWORD" "https://$NESSUS_IP:8834/session" | jq -r .token)
 if [ -z "$TOKEN" ]; then
   echo "Erreur d'authentification"
   exit 1
 fi
 POLICY_LIST=$(curl -s -X GET -H "X-Cookie: token=$TOKEN" "https://$NESSUS_IP:8834/policies")
-POLICY_UUID=$(echo $POLICY_LIST | jq -r '.policies[] | select(.name | test("Web Application Tests")) | .uuid')
+echo "Liste des politiques disponibles :"
+echo $POLICY_LIST
+
+POLICY_UUID=$(echo $POLICY_LIST | jq -r '.policies[] | select(.name == "Web Application Tests") | .uuid')
 if [ -z "$POLICY_UUID" ]; then
-  echo "Politique Web Application Tests non trouvée"
+  echo "Politique Web Application Tests non trouvée. Vérifie les politiques disponibles."
   exit 1
 fi
 echo "Politique Web Application Tests trouvée avec UUID : $POLICY_UUID"
