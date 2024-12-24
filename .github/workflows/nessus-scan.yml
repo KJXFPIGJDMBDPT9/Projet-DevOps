@@ -19,9 +19,9 @@ jobs:
     - name: Set up Docker
       run: |
         docker network create my_network
-        docker run -d --network my_network --name akaunting akaunting
+        docker run -d --network my_network --name akaunting akaunting/akaunting
         docker run -d --network my_network --name mysql mysql
-        docker run -d --network my_network --name nessus nessus
+        docker run -d --network my_network --name nessus tenable/nessus
    
     - name: Wait for Nessus to initialize
       run: sleep 60
