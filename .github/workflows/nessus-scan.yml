@@ -3,26 +3,27 @@ name: Nessus Scan Pipeline
 on:
   push:
     branches:
-      - main 
+      - main  
 
 jobs:
   scan:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest 
 
-    steps:
+    steps:      
       - name: Checkout code
         uses: actions/checkout@v3
-
+     
       - name: Update and install dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get upgrade -y  # Met à jour tous les paquets existants
-          sudo apt-get install -y docker.io jq curl
-
+          sudo apt-get upgrade -y
+          sudo apt-get install -y --fix-broken docker.io jq curl
+     
       - name: Run Nessus scan script
-        run: |        
-          chmod +x ./nessus-scan.sh
-          ./nessus-scan.sh
+        run: |
+          # Lancer le script Bash
+          chmod +x ./run_nessus_scan.sh
+          ./run_nessus_scan.sh
 
       - name: Upload scan report
         uses: actions/upload-artifact@v3
