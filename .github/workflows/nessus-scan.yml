@@ -35,7 +35,7 @@ jobs:
                   "name": "Docker Scan",
                   "text_targets": "172.19.0.3"
               }
-          }' https://nessus-host:8834/scans
+          }' https://nessus:8834/scans
     
     - name: Wait for Nessus scan to complete
       run: sleep 120 
