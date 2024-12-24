@@ -6,6 +6,7 @@ AKAUNTING_CONTAINER_NAME="akaunting"
 MYSQL_ROOT_PASSWORD="root_password"
 USERNAME="nourelhoda"
 PASSWORD="nourelhoda"
+EMAIL="nourelhoda@example.com"
 echo "Création du réseau Docker..."
 docker network create $NETWORK_NAME
 echo "Lancement des conteneurs Docker..."
@@ -19,6 +20,18 @@ TARGET_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}
 echo "Vérification de l'accès à Nessus..."
 if ! curl -k -s "https://$NESSUS_IP:8834" >/dev/null; then
   echo "Impossible de se connecter à Nessus sur $NESSUS_IP:8834. Assurez-vous que le conteneur est actif."
+  exit 1
+fi
+echo "Création d'un compte Nessus Essentials..."
+CREATE_ACCOUNT_RESPONSE=$(curl -s -k -X POST -H "Content-Type: application/json" -d '{
+  "username": "'$USERNAME'",
+  "password": "'$PASSWORD'",
+  "email": "'$EMAIL'"
+}' "https://$NESSUS_IP:8834/users")
+if ! echo $CREATE_ACCOUNT_RESPONSE | jq -e '.error' >/dev/null 2>&1; then
+  echo "Compte Nessus Essentials créé avec succès."
+else
+  echo "Erreur lors de la création du compte Nessus Essentials : $(echo $CREATE_ACCOUNT_RESPONSE | jq -r '.error')"
   exit 1
 fi
 echo "Tentative d'authentification à Nessus..."
@@ -59,6 +72,7 @@ done
 echo "Récupération du rapport du scan..."
 curl -s -k -X GET -H "X-Cookie: token=$TOKEN" "https://$NESSUS_IP:8834/scans/$SCAN_ID/export" -o "scan_report.html"
 echo "Le rapport du scan est sauvegardé dans 'scan_report.html'."
+
 echo "Suppression du token de session pour des raisons de sécurité..."
 curl -k -X DELETE -H "X-Cookie: token=$TOKEN" "https://$NESSUS_IP:8834/session"
 echo "Nettoyage des conteneurs Docker..."
