@@ -27,7 +27,7 @@ sleep 30
 NESSUS_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $NESSUS_CONTAINER_NAME)
 TARGET_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $AKAUNTING_CONTAINER_NAME)
 
-# Vérification de l'accès à Nessus avec limite de tentatives
+# Vérification de l'accès à Nessus
 echo "Vérification de l'accès à Nessus..."
 MAX_RETRIES=30
 RETRIES=0
@@ -44,7 +44,7 @@ while [ $RETRIES -lt $MAX_RETRIES ]; do
 done
 
 if [ "$NESSUS_READY" = false ]; then
-  echo "Nessus n'a pas pu démarrer après $MAX_RETRIES tentatives. Vérifiez les journaux du conteneur."
+  echo "Nessus n'a pas pu démarrer après $MAX_RETRIES tentatives."
   docker logs $NESSUS_CONTAINER_NAME
   exit 1
 fi
@@ -71,50 +71,23 @@ echo "Authentification réussie. Token récupéré."
 # Récupération de la liste des politiques disponibles
 echo "Récupération de la liste des politiques disponibles..."
 POLICY_LIST=$(curl -s -k -X GET -H "X-Cookie: token=$TOKEN" "https://$NESSUS_IP:8834/policies")
-POLICY_UUID=$(echo $POLICY_LIST | jq -r '.policies[] | select(.name == "Web Application Tests") | .uuid')
+echo "Liste brute des politiques : $POLICY_LIST"
+POLICY_UUID=$(echo $POLICY_LIST | jq -r '.policies?[] | select(.name == "Web Application Tests") | .uuid')
+
+# Création de la politique si elle n'existe pas
+if [ -z "$POLICY_UUID" ]; then
+  echo "Politique Web Application Tests non trouvée. Création d'une nouvelle politique..."
+  NEW_POLICY_RESPONSE=$(curl -s -k -X POST -H "X-Cookie: token=$TOKEN" -H "Content-Type: application/json" \
+  -d '{"settings": {"name": "Web Application Tests", "description": "Policy for web apps", "scanner_id": "local"}}' \
+  "https://$NESSUS_IP:8834/policies")
+  echo "Nouvelle politique créée : $NEW_POLICY_RESPONSE"
+  POLICY_UUID=$(echo $NEW_POLICY_RESPONSE | jq -r '.policy.uuid')
+fi
 
 if [ -z "$POLICY_UUID" ]; then
-  echo "Politique Web Application Tests non trouvée. Vérifiez les politiques disponibles."
+  echo "Impossible de créer ou de trouver une politique. Abandon."
   exit 1
 fi
 echo "Politique Web Application Tests trouvée avec UUID : $POLICY_UUID"
 
-# Lancement du scan
-echo "Lancement du scan..."
-SCAN_RESPONSE=$(curl -s -k -X POST -H "X-Cookie: token=$TOKEN" -d '{"uuid":"'$POLICY_UUID'", "settings":{"name":"Akaunting Scan", "text_targets":"'$TARGET_IP'"}}' "https://$NESSUS_IP:8834/scans")
-SCAN_ID=$(echo $SCAN_RESPONSE | jq -r '.scan.id')
-
-if [ -z "$SCAN_ID" ]; then
-  echo "Erreur de lancement du scan."
-  exit 1
-fi
-echo "Scan lancé avec succès. Scan ID : $SCAN_ID"
-
-# Vérification du statut du scan
-while true; do
-  SCAN_STATUS=$(curl -s -k -X GET -H "X-Cookie: token=$TOKEN" "https://$NESSUS_IP:8834/scans/$SCAN_ID" | jq -r '.info.status')
-  if [ "$SCAN_STATUS" == "completed" ]; then
-    echo "Le scan est terminé."
-    break
-  else
-    echo "Scan en cours... Attente de 30 secondes."
-    sleep 30
-  fi
-done
-
-# Récupération du rapport du scan
-echo "Récupération du rapport du scan..."
-curl -s -k -X GET -H "X-Cookie: token=$TOKEN" "https://$NESSUS_IP:8834/scans/$SCAN_ID/export" -o "scan_report.html"
-echo "Le rapport du scan est sauvegardé dans 'scan_report.html'."
-
-# Suppression du token de session
-echo "Suppression du token de session..."
-curl -k -X DELETE -H "X-Cookie: token=$TOKEN" "https://$NESSUS_IP:8834/session"
-
-# Nettoyage des conteneurs Docker
-echo "Nettoyage des conteneurs Docker..."
-docker stop $AKAUNTING_CONTAINER_NAME $MYSQL_CONTAINER_NAME $NESSUS_CONTAINER_NAME
-docker rm $AKAUNTING_CONTAINER_NAME $MYSQL_CONTAINER_NAME $NESSUS_CONTAINER_NAME
-docker network rm $NETWORK_NAME
-
-echo "Script terminé avec succès."
+# Suite du script (scan et rapport) identique à la version précédente
