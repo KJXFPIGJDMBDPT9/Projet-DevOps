@@ -34,7 +34,7 @@ jobs:
     # Étape 5 : Lancer Nessus dans un conteneur Docker
     - name: Start Nessus Container
       run: |
-        docker run --name nessus -d -p 8834:8834 tenableofficial/nessus
+        docker run --name nessus -d -p 8834:8834 tenable/nessus
         sleep 60 # Attendre que Nessus démarre correctement
 
     # Étape 6 : Récupérer l'IP du conteneur Akaunting
@@ -44,20 +44,57 @@ jobs:
         export AKAUNTING_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' akaunting)
         echo "AKAUNTING_IP=$AKAUNTING_IP" >> $GITHUB_ENV
 
-    # Étape 7 : Scanner l'application Akaunting avec Nessus
-    - name: Run Nessus Scan
+    # Étape 7 : Authentification avec l'API Nessus
+    - name: Authenticate with Nessus
+      id: auth
       run: |
-        sudo apt-get install -y jq curl
-        export TARGETS=$AKAUNTING_IP
-        export RESULTS_FILE=nessus_scan_results.json
+        response=$(curl -X POST -H "Content-Type: application/json" \
+          -d '{"username": "nourelhoda", "password": "nourelhoda"}' \
+          https://localhost:8834/session)
+        token=$(echo $response | jq -r '.token')
+        echo "NESSUS_TOKEN=$token" >> $GITHUB_ENV
 
-        # Configuration de Nessus via son API
-        echo "Setting up Nessus scanner and simulating scan..."
-        echo '{ "results": "Scan completed successfully for $TARGETS" }' > $RESULTS_FILE
+    # Étape 8 : Obtenir l'UUID du modèle de scan
+    - name: Get Scan Template UUID
+      id: get_template_uuid
+      run: |
+        response=$(curl -X GET -H "X-Cookie: token=$NESSUS_TOKEN" \
+          https://localhost:8834/editor/policies)
+        scan_template_uuid=$(echo $response | jq -r '.policies[0].uuid')
+        echo "SCAN_TEMPLATE_UUID=$scan_template_uuid" >> $GITHUB_ENV
 
-    # Étape 8 : Stocker les résultats du scan
+    # Étape 9 : Créer un scan dans Nessus
+    - name: Create Nessus Scan
+      run: |
+        response=$(curl -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+                "uuid": "$SCAN_TEMPLATE_UUID",
+                "settings": {
+                  "name": "Akaunting Scan",
+                  "text_targets": "$AKAUNTING_IP",
+                  "description": "Scan de sécurité pour l'application Akaunting"
+                }
+              }' https://localhost:8834/scans)
+        scan_id=$(echo $response | jq -r '.scan.id')
+        echo "SCAN_ID=$scan_id" >> $GITHUB_ENV
+
+    # Étape 10 : Lancer le scan Nessus
+    - name: Launch Nessus Scan
+      run: |
+        curl -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
+          https://localhost:8834/scans/$SCAN_ID/launch
+
+    # Étape 11 : Télécharger les résultats du scan
+    - name: Download Nessus Scan Results
+      run: |
+        curl -X GET -H "X-Cookie: token=$NESSUS_TOKEN" \
+          https://localhost:8834/scans/$SCAN_ID/export?format=nessus \
+          -o nessus_scan_results.nessus
+
+    # Étape 12 : Stocker les résultats du scan
     - name: Upload Scan Results
       uses: actions/upload-artifact@v3
       with:
         name: nessus-scan-results
-        path: nessus_scan_results.json
+        path: nessus_scan_results.nessus
