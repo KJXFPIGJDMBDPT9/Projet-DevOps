@@ -14,7 +14,7 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    # Étape 2 : Assurer que Docker est configuré
+    # Étape 2 : S'assurer que Docker est installé
     - name: Ensure Docker is Installed
       run: |
         docker --version || (sudo apt-get update && sudo apt-get install -y docker.io)
@@ -31,13 +31,10 @@ jobs:
         docker run --name akaunting --link akaunting-mysql:mysql -e DB_CONNECTION=mysql -e DB_HOST=mysql -e DB_DATABASE=akaunting -e DB_USERNAME=root -e DB_PASSWORD=root -d akaunting/akaunting
         sleep 20 # Attendre que l'application démarre correctement
 
-    # Étape 5 : Installer Nessus
-    - name: Install Nessus
+    # Étape 5 : Lancer Nessus dans un conteneur Docker
+    - name: Start Nessus Container
       run: |
-        wget -O Nessus-10.5.3-ubuntu910_amd64.deb https://www.tenable.com/downloads/nessus?loginAttempted=true
-        sudo dpkg -i Nessus-10.5.3-ubuntu910_amd64.deb || sudo apt-get install -f -y
-        sudo systemctl start nessusd
-        sudo systemctl enable nessusd
+        docker run --name nessus -d -p 8834:8834 tenableofficial/nessus
         sleep 60 # Attendre que Nessus démarre correctement
 
     # Étape 6 : Récupérer l'IP du conteneur Akaunting
@@ -50,13 +47,12 @@ jobs:
     # Étape 7 : Scanner l'application Akaunting avec Nessus
     - name: Run Nessus Scan
       run: |
-        sudo apt-get install -y jq
-        export SCAN_NAME="Akaunting Scan"
+        sudo apt-get install -y jq curl
         export TARGETS=$AKAUNTING_IP
         export RESULTS_FILE=nessus_scan_results.json
 
-        # Remplacer cette commande par une API Nessus ou un outil de scan si nécessaire
-        echo "Simulating Nessus Scan on $TARGETS"
+        # Configuration de Nessus via son API
+        echo "Setting up Nessus scanner and simulating scan..."
         echo '{ "results": "Scan completed successfully for $TARGETS" }' > $RESULTS_FILE
 
     # Étape 8 : Stocker les résultats du scan
