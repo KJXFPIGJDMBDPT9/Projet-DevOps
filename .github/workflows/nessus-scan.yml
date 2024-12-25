@@ -34,7 +34,7 @@ jobs:
     # Étape 5 : Lancer Nessus dans un conteneur Docker
     - name: Start Nessus Container
       run: |
-        docker run --name nessus -d -p 8834:8834 tenable/nessus
+        docker run --name nessus -d -p 8834:8834 tenableofficial/nessus
         sleep 60 # Attendre que Nessus démarre correctement
 
     # Étape 6 : Récupérer l'IP du conteneur Akaunting
