@@ -121,8 +121,11 @@ jobs:
         cat <<EOF > patch.yml
         - hosts: localhost
           tasks:
-          - name: Apply security patches
-            command: apt-get update && apt-get upgrade -y
+            - name: Update package list
+              command: apt-get update
+
+            - name: Upgrade installed packages
+              command: apt-get upgrade -y
         EOF
 
     # Étape 4 : Exécuter Ansible pour appliquer les correctifs
