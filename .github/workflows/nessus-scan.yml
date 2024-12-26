@@ -1,4 +1,4 @@
-name: Nessus Scan on Akaunting
+name: Nessus Scan and Automated Patching
 
 on:
   push:
@@ -98,3 +98,22 @@ jobs:
       with:
         name: nessus-scan-results
         path: nessus_scan_results.nessus
+
+    # Étape 13 : Automatisation des correctifs avec Ansible
+    - name: Run Ansible Playbook for Patching
+      run: |
+        sudo apt-get update && sudo apt-get install -y ansible
+        echo "
+        - name: Apply Patches Based on Nessus Results
+          hosts: localhost
+          tasks:
+            - name: Parse Nessus Results
+              shell: cat nessus_scan_results.nessus
+              register: nessus_results
+
+            - name: Apply Security Updates
+              apt:
+                upgrade: dist
+                autoremove: yes
+        " > ansible_playbook.yml
+        ansible-playbook ansible_playbook.yml
