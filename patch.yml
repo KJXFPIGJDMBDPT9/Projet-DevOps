@@ -1,4 +1,4 @@
-- hosts: localhost
+- hosts: akaunting
   become: yes
   tasks:
     # Task 1: Ajouter les en-têtes HTTP pour protéger contre le framing
