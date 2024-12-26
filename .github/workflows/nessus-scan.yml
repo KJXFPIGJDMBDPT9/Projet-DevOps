@@ -84,21 +84,7 @@ jobs:
       run: |
         curl -k -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
           https://localhost:8834/scans/$SCAN_ID/launch
-
-    # Étape 11 : Télécharger les résultats du scan
-    - name: Download Nessus Scan Results
-      run: |
-        curl -k -X GET -H "X-Cookie: token=$NESSUS_TOKEN" \
-          https://localhost:8834/scans/$SCAN_ID/export?format=nessus \
-          -o nessus_scan_results.nessus
-
-    # Étape 12 : Stocker les résultats du scan
-    - name: Upload Scan Results
-      uses: actions/upload-artifact@v3
-      with:
-        name: nessus-scan-results
-        path: nessus_scan_results.nessus
-
+          
   patch-automation:
     runs-on: ubuntu-latest
 
