@@ -117,4 +117,4 @@ jobs:
 
     # Étape 4 : Exécuter Ansible pour appliquer les correctifs
     - name: Run Ansible Playbook
-      run: ansible-playbook patch.yml
+      run: ansible-playbook -i inventory.ini patch.yml
