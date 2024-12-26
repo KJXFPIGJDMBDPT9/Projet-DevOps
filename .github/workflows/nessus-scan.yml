@@ -49,7 +49,7 @@ jobs:
       id: auth
       run: |
         response=$(curl -k -X POST -H "Content-Type: application/json" \
-          -d '{"username": "nourelhoda", "password": "nourelhoda"}' \
+          -d '{"username": "$NESSUS_USERNAME", "password": "NESSUS_PASSWORD"}' \
           https://localhost:8834/session)
         token=$(echo $response | jq -r '.token')
         echo "NESSUS_TOKEN=$token" >> $GITHUB_ENV
