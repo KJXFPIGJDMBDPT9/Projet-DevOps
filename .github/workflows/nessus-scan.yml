@@ -1,4 +1,4 @@
-name: Nessus Scan on Akaunting
+name: Nessus Scan on Akaunting and Patch Automation
 
 on:
   push:
@@ -68,14 +68,14 @@ jobs:
       run: |
         response=$(curl -k -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
           -H "Content-Type: application/json" \
-          -d '{
-            "uuid": "'$SCAN_TEMPLATE_UUID'",
-            "settings": {
-              "name": "Akaunting Scan",
-              "text_targets": "'$AKAUNTING_IP'",
-              "description": "Scan de sécurité pour l'application Akaunting"
+          -d "{
+            \"uuid\": \"$SCAN_TEMPLATE_UUID\",
+            \"settings\": {
+              \"name\": \"Akaunting Scan\",
+              \"text_targets\": \"$AKAUNTING_IP\",
+              \"description\": \"Scan de sécurité pour l'application Akaunting\"
             }
-          }' https://localhost:8834/scans)
+          }" https://localhost:8834/scans)
         scan_id=$(echo $response | jq -r '.scan.id')
         echo "SCAN_ID=$scan_id" >> $GITHUB_ENV
 
@@ -99,35 +99,32 @@ jobs:
         name: nessus-scan-results
         path: nessus_scan_results.nessus
 
-  automate-fixes:
+  patch-automation:
     runs-on: ubuntu-latest
+
+    needs: setup-and-scan
 
     steps:
     # Étape 1 : Vérifier le code
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    # Étape 2 : Configurer Ansible
+    # Étape 2 : Installer Ansible
     - name: Install Ansible
       run: |
-        sudo apt-get update
-        sudo apt-get install -y ansible
+        sudo apt update
+        sudo apt install -y ansible
 
-    # Étape 3 : Créer le fichier d'inventaire
-    - name: Create Ansible Inventory
+    # Étape 3 : Créer un fichier Ansible pour appliquer les correctifs
+    - name: Create Ansible Playbook
       run: |
-        echo "[webserver]" > inventory
-        echo "$AKAUNTING_IP ansible_user=root ansible_password=root" >> inventory
-
-    # Étape 4 : Déployer des correctifs avec Ansible
-    - name: Apply Fixes with Ansible
-      run: |
-        echo "
-        - hosts: webserver
+        cat <<EOF > patch.yml
+        - hosts: localhost
           tasks:
-            - name: Apply security patches
-              apt:
-                upgrade: dist
-                update_cache: yes
-        " > playbook.yml
-        ansible-playbook -i inventory playbook.yml
+          - name: Apply security patches
+            command: apt-get update && apt-get upgrade -y
+        EOF
+
+    # Étape 4 : Exécuter Ansible pour appliquer les correctifs
+    - name: Run Ansible Playbook
+      run: ansible-playbook patch.yml
