@@ -69,13 +69,13 @@ jobs:
         response=$(curl -k -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{
-                "uuid": "$SCAN_TEMPLATE_UUID",
-                "settings": {
-                  "name": "Akaunting Scan",
-                  "text_targets": "$AKAUNTING_IP",
-                  "description": "Scan de sécurité pour l'application Akaunting"
-                }
-              }' https://localhost:8834/scans)
+            "uuid": "'$SCAN_TEMPLATE_UUID'",
+            "settings": {
+              "name": "Akaunting Scan",
+              "text_targets": "'$AKAUNTING_IP'",
+              "description": "Scan de sécurité pour l'application Akaunting"
+            }
+          }' https://localhost:8834/scans)
         scan_id=$(echo $response | jq -r '.scan.id')
         echo "SCAN_ID=$scan_id" >> $GITHUB_ENV
 
