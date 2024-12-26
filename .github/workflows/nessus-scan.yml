@@ -1,4 +1,4 @@
-name: Nessus Scan and Automated Patching
+name: Nessus Scan on Akaunting
 
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
     - name: Authenticate with Nessus
       id: auth
       run: |
-        response=$(curl -X POST -H "Content-Type: application/json" \
+        response=$(curl -k -X POST -H "Content-Type: application/json" \
           -d '{"username": "nourelhoda", "password": "nourelhoda"}' \
           https://localhost:8834/session)
         token=$(echo $response | jq -r '.token')
@@ -58,7 +58,7 @@ jobs:
     - name: Get Scan Template UUID
       id: get_template_uuid
       run: |
-        response=$(curl -X GET -H "X-Cookie: token=$NESSUS_TOKEN" \
+        response=$(curl -k -X GET -H "X-Cookie: token=$NESSUS_TOKEN" \
           https://localhost:8834/editor/policies)
         scan_template_uuid=$(echo $response | jq -r '.policies[0].uuid')
         echo "SCAN_TEMPLATE_UUID=$scan_template_uuid" >> $GITHUB_ENV
@@ -66,7 +66,7 @@ jobs:
     # Étape 9 : Créer un scan dans Nessus
     - name: Create Nessus Scan
       run: |
-        response=$(curl -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
+        response=$(curl -k -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{
                 "uuid": "$SCAN_TEMPLATE_UUID",
@@ -82,13 +82,13 @@ jobs:
     # Étape 10 : Lancer le scan Nessus
     - name: Launch Nessus Scan
       run: |
-        curl -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
+        curl -k -X POST -H "X-Cookie: token=$NESSUS_TOKEN" \
           https://localhost:8834/scans/$SCAN_ID/launch
 
     # Étape 11 : Télécharger les résultats du scan
     - name: Download Nessus Scan Results
       run: |
-        curl -X GET -H "X-Cookie: token=$NESSUS_TOKEN" \
+        curl -k -X GET -H "X-Cookie: token=$NESSUS_TOKEN" \
           https://localhost:8834/scans/$SCAN_ID/export?format=nessus \
           -o nessus_scan_results.nessus
 
@@ -99,21 +99,35 @@ jobs:
         name: nessus-scan-results
         path: nessus_scan_results.nessus
 
-    # Étape 13 : Automatisation des correctifs avec Ansible
-    - name: Run Ansible Playbook for Patching
-      run: |
-        sudo apt-get update && sudo apt-get install -y ansible
-        echo "
-        - name: Apply Patches Based on Nessus Results
-          hosts: localhost
-          tasks:
-            - name: Parse Nessus Results
-              shell: cat nessus_scan_results.nessus
-              register: nessus_results
+  automate-fixes:
+    runs-on: ubuntu-latest
 
-            - name: Apply Security Updates
+    steps:
+    # Étape 1 : Vérifier le code
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # Étape 2 : Configurer Ansible
+    - name: Install Ansible
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ansible
+
+    # Étape 3 : Créer le fichier d'inventaire
+    - name: Create Ansible Inventory
+      run: |
+        echo "[webserver]" > inventory
+        echo "$AKAUNTING_IP ansible_user=root ansible_password=root" >> inventory
+
+    # Étape 4 : Déployer des correctifs avec Ansible
+    - name: Apply Fixes with Ansible
+      run: |
+        echo "
+        - hosts: webserver
+          tasks:
+            - name: Apply security patches
               apt:
                 upgrade: dist
-                autoremove: yes
-        " > ansible_playbook.yml
-        ansible-playbook ansible_playbook.yml
+                update_cache: yes
+        " > playbook.yml
+        ansible-playbook -i inventory playbook.yml
