@@ -35,7 +35,7 @@ jobs:
     - name: Start Nessus Container
       run: |
         docker run --name nessus -d -p 8834:8834 tenableofficial/nessus
-        sleep 60 # Attendre que Nessus démarre correctement
+        sleep 60
 
     # Étape 6 : Récupérer l'IP du conteneur Akaunting
     - name: Get Akaunting Container IP
@@ -49,7 +49,7 @@ jobs:
       id: auth
       run: |
         response=$(curl -k -X POST -H "Content-Type: application/json" \
-          -d '{"username": "$NESSUS_USERNAME", "password": "NESSUS_PASSWORD"}' \
+          -d '{"username": "$NESSUS_USER", "password": "NESSUS_PASSWORD"}' \
           https://localhost:8834/session)
         token=$(echo $response | jq -r '.token')
         echo "NESSUS_TOKEN=$token" >> $GITHUB_ENV
