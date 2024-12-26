@@ -120,6 +120,7 @@ jobs:
       run: |
         cat <<EOF > patch.yml
         - hosts: localhost
+          become: true  # Utilise 'become' pour avoir des privilèges root
           tasks:
             - name: Update package list
               command: apt-get update
