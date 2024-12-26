@@ -1,0 +1,62 @@
+- hosts: localhost
+  become: yes
+  tasks:
+    # Task 1: Ajouter les en-têtes HTTP pour protéger contre le framing
+    - name: Configure X-Frame-Options header in Apache or Nginx
+      block:
+        - name: Add X-Frame-Options header to Apache
+          lineinfile:
+            path: /etc/apache2/conf-enabled/security.conf
+            regexp: '^Header always set X-Frame-Options'
+            line: 'Header always set X-Frame-Options "DENY"'
+          notify: restart apache
+
+        - name: Add Content-Security-Policy header to Nginx
+          lineinfile:
+            path: /etc/nginx/nginx.conf
+            regexp: '^add_header Content-Security-Policy'
+            line: 'add_header Content-Security-Policy "frame-ancestors \'self\';";'
+          notify: restart nginx
+      when: ansible_facts['pkg_mgr'] == 'apt' 
+
+    # Task 2: Vérifier que les formulaires sensibles utilisent HTTPS
+    - name: Ensure sensitive forms use HTTPS
+      shell: |
+        grep -Ri '<form' /path/to/your/app | grep -v 'action="https://'
+      register: insecure_forms
+      changed_when: false
+
+    - name: Output insecure forms
+      debug:
+        msg: "Insecure forms found: {{ insecure_forms.stdout_lines }}"
+      when: insecure_forms.stdout_lines | length > 0
+
+    # Task 3: Ajouter l'attribut autocomplete="off" aux champs sensibles
+    - name: Add autocomplete="off" to sensitive input fields
+      shell: |
+        find /path/to/your/app -name "*.html" -exec sed -i 's/<input \(.*\)name="\([a-zA-Z0-9_]*password[a-zA-Z0-9_]*\)"\(.*\)>/<input \1name="\2"\3 autocomplete="off">/g' {} +
+      register: autocomplete_fix
+      changed_when: autocomplete_fix.stdout != ''
+    
+    - name: Restart Apache
+      service:
+        name: apache2
+        state: restarted
+      when: "'apache2' in ansible_facts.services"
+
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: "'nginx' in ansible_facts.services"
+
+  handlers:
+    - name: restart apache
+      service:
+        name: apache2
+        state: restarted
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
